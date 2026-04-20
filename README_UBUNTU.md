@@ -2,23 +2,20 @@
 
 ## Instalacao Automatica (Recomendada)
 
-### Metodo 1: Um Comando
+### Primeira Instalacao
+
+Para instalar o Titan Launcher pela primeira vez, copie e cole o comando abaixo no seu terminal. Ele irá clonar o repositório, instalar as dependências necessárias e configurar o launcher.
 
 ```bash
-cd titan-ubuntu && chmod +x install.sh && ./install.sh
+git clone https://github.com/DragonBRX/Titan.Laucher.git && cd Titan.Laucher && chmod +x install.sh && yes | ./install.sh
 ```
 
-Pronto! O script faz TUDO automaticamente:
-- Detecta sua distribuicao
-- Instala dependencias do sistema (Python, tkinter, Java)
-- Configura ambiente Python virtual
-- Instala bibliotecas Python
-- Cria atalho no menu de aplicativos
+### Atualizacao / Reinstalacao
 
-### Metodo 2: Instalar e Executar
+Para atualizar ou reinstalar o Titan Launcher, use o script `reinstalar.sh`. Ele irá parar qualquer processo em execução, remover a instalação anterior, atualizar o repositório Git, reinstalar as dependências do sistema e executar o instalador principal de forma automática.
 
 ```bash
-cd titan-ubuntu && chmod +x install.sh && ./install.sh --run
+cd Titan.Laucher && chmod +x reinstalar.sh && ./reinstalar.sh
 ```
 
 ---
