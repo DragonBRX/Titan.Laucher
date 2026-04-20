@@ -142,7 +142,7 @@ log_info "Dependencias do sistema instaladas com sucesso."
 log_step "Executando o script de instalacao original (install.sh)..."
 
 # O install.sh pergunta "Deseja executar agora? [S/n]" no final. Responder 'S' automaticamente.
-yes | bash install.sh || log_error "Falha ao executar o script install.sh."
+bash install.sh --run || log_error "Falha ao executar o script install.sh."
 
 log_info "Script install.sh executado com sucesso."
 

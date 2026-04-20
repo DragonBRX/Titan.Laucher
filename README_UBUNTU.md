@@ -7,7 +7,7 @@
 Para instalar o Titan Launcher pela primeira vez, copie e cole o comando abaixo no seu terminal. Ele irá clonar o repositório, instalar as dependências necessárias e configurar o launcher.
 
 ```bash
-git clone https://github.com/DragonBRX/Titan.Laucher.git && cd Titan.Laucher && chmod +x install.sh && yes | ./install.sh
+git clone https://github.com/DragonBRX/Titan.Laucher.git && cd Titan.Laucher && chmod +x install.sh && ./install.sh --run
 ```
 
 ### Atualizacao / Reinstalacao
