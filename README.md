@@ -1,27 +1,57 @@
-# Titan Launcher
+# Titan Launcher - Ubuntu/Debian Edition v3.0
 
-## Ubuntu/Debian Edition v3.0
+Minecraft Launcher otimizado para sistemas baseados em Debian e Ubuntu.
 
-### Instalacao Rapida
+## 🚀 Instalação Rápida (Para Novos Usuários)
+
+Se esta é sua primeira vez instalando, execute o comando abaixo:
 
 ```bash
-chmod +x install.sh && ./install.sh
+git clone https://github.com/DragonBRX/Titan.Laucher.git ~/Titan.Laucher && cd ~/Titan.Laucher && chmod +x install.sh && ./install.sh
 ```
 
-### Opcoes
+---
 
-- `./install.sh` - Instalar
-- `./install.sh --run` - Instalar e executar
-- `./install.sh --uninstall` - Desinstalar
-- `./install.sh --update` - Atualizar
-- `./install.sh --help` - Ajuda
+## 🛠️ Manual de Recuperação (Para Erros de "main.py")
 
-### Requisitos
+Se você teve o erro `No such file or directory` para o `main.py`, siga estes 3 passos:
 
-- Ubuntu 20.04+ / Debian 11+ / Mint 20+ / Pop!_OS
-- Python 3.8+
-- OpenJDK 17+ (instalado automaticamente)
+### Passo 1: Limpeza Total
+Remova resíduos de instalações que falharam:
+```bash
+pkill -f "titan-launcher" 2>/dev/null || true
+rm -rf ~/.local/share/TitanLauncher ~/.config/titanlauncher ~/.local/bin/titan-launcher
+rm -f ~/.local/share/applications/titan-launcher.desktop
+update-desktop-database ~/.local/share/applications || true
+```
 
-### Documentacao
+### Passo 2: Atualização do Código
+Sincronize seu computador com as correções oficiais:
+```bash
+cd ~/Titan.Laucher && git fetch --all && git reset --hard origin/main && git pull origin main
+```
 
-Veja [README_UBUNTU.md](README_UBUNTU.md) para documentacao completa.
+### Passo 3: Reinstalação
+Execute o instalador corrigido:
+```bash
+sudo apt update && sudo apt install -y python3 python3-pip python3-tk python3-venv openjdk-21-jre
+cd ~/Titan.Laucher && chmod +x install.sh && ./install.sh
+```
+
+---
+
+## ⚙️ Opções do Instalador
+
+- `./install.sh` - Instalação padrão
+- `./install.sh --run` - Instala e abre o launcher
+- `./install.sh --uninstall` - Remove completamente do sistema
+- `./install.sh --update` - Atualiza preservando seus dados
+- `./install.sh --help` - Mostra todas as opções
+
+## 📋 Requisitos
+- **SO:** Ubuntu 22.04 / 24.04 ou derivados
+- **Python:** 3.10+
+- **Java:** OpenJDK 21 (Recomendado)
+
+## 📄 Documentação
+Para detalhes avançados, veja o [README_UBUNTU.md](README_UBUNTU.md).
