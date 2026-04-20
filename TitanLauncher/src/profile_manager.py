@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 TITAN LAUNCHER - Exportador/Importador de Perfis
-Versão: 2.5.0
 """
 
 import json

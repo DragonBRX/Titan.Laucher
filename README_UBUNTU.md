@@ -1,4 +1,4 @@
-# Titan Launcher v3.0 - Ubuntu/Debian Edition
+# Titan Launcher - Ubuntu/Debian Edition
 
 ## Instalacao Automatica (Recomendada)
 
@@ -113,4 +113,4 @@ chmod +x install.sh
 ---
 
 ## Versao
-**v3.0 Ubuntu Edition** - 2026
+**Ubuntu Edition**

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-TITAN LAUNCHER v3.0 - UBUNTU/DEBIAN EDITION
+TITAN LAUNCHER
 Interface Principal otimizada para Ubuntu
 """
 
@@ -27,7 +27,7 @@ except (OSError, AttributeError):
 # Adicionar diretorio src ao path
 sys.path.insert(0, str(Path(__file__).parent))
 
-print("[TITAN] Iniciando Titan Launcher v3.0 Ubuntu Edition...")
+print("[TITAN] Iniciando Titan Launcher Ubuntu Edition...")
 
 # ============================================================
 # IMPORTAR MODULOS AVANCADOS COM TRATAMENTO DE ERROS
@@ -334,170 +334,129 @@ class TitanLauncher:
         self.main_frame = None
         self.current_view = "home"
         
-    def create_window(self):
-        """Cria janela principal"""
-        self.root = tk.Tk()
-        self.root.title(f"Titan Launcher v{self.VERSION} - Ubuntu Edition")
-        self.root.geometry("1100x700")
-        self.root.minsize(900, 600)
-        
-        # Tentar usar tema escuro por padrao
-        theme = self.theme_manager.get_theme() if self.theme_manager else {
-            'bg_primary': '#1a1a1a',
-            'bg_secondary': '#2b2b2b',
-            'bg_tertiary': '#353535',
-            'fg_primary': '#ffffff',
-            'fg_secondary': '#aaaaaa',
-            'accent': '#4a9eff',
-            'success': '#4caf50',
-            'warning': '#ff9800',
-            'error': '#f44336',
-            'border': '#454545',
-        }
-        
-        self.root.configure(bg=theme.get('bg_primary', '#1a1a1a'))
-        
-        # Configurar icone
-        self._set_window_icon()
-        
-        # Inicializar gerenciadores
+        # Inicializar componentes em background
+        threading.Thread(target=self._init_background_components, daemon=True).start()
+
+    def _init_background_components(self):
+        """Inicializa componentes pesados em background"""
+        # Notificacoes
         if NotificationManager:
-            self.notification_manager = NotificationManager(self.root)
+            self.notification_manager = NotificationManager()
         
+        # Performance
         if PerformanceMonitor:
-            self.performance_monitor = PerformanceMonitor(self.root)
-            self.performance_monitor.start_monitoring()
+            self.performance_monitor = PerformanceMonitor()
+            self.performance_monitor.start()
         
+        # Backups
         if ProfileBackup:
             self.backup_manager = ProfileBackup(self.config_dir / "backups")
         
+        # Shaders
         if ShaderManager:
-            self.shader_manager = ShaderManager(self.minecraft_dir)
+            self.shader_manager = ShaderManager()
         
-        # Criar UI
-        self.create_ui()
+        # Carregar versoes do Minecraft
+        self.load_versions()
         
-        # Notificacao de boas-vindas
-        if self.notification_manager:
-            self.notification_manager.show(
-                "Bem-vindo!",
-                f"Titan Launcher v{self.VERSION} Ubuntu Edition carregado!",
-                "success"
-            )
+        print("[TITAN] Componentes de background inicializados")
+
+    def create_window(self):
+        """Cria a janela principal"""
+        self.root = tk.Tk()
+        self.root.title("Titan Launcher - Ubuntu Edition")
+        self.root.geometry("1100x700")
+        self.root.minsize(900, 600)
+        
+        # Cores base (Dark Theme Ubuntu style)
+        self.root.configure(bg='#1a1a1a')
+        
+        # Icone
+        self._set_window_icon()
+        
+        # Estilo ttk
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure("TProgressbar", thickness=10, troughcolor='#2b2b2b', background='#4a9eff', bordercolor='#2b2b2b')
+        style.configure("TCombobox", fieldbackground='#353535', background='#454545', foreground='white', bordercolor='#454545')
+        
+        # Layout principal
+        self._build_layout()
+        
+        # Notificacao de inicializacao
+        self.root.after(1000, lambda: print("[TITAN] Titan Launcher Ubuntu Edition carregado!"))
         
         # Verificar Java
-        self.root.after(1000, lambda: JavaManager.check_and_notify(self.root))
-        
-        # Carregar versoes em background
-        if mll:
-            threading.Thread(target=self.load_versions, daemon=True).start()
-        
+        self.root.after(2000, lambda: JavaManager.check_and_notify(self.root))
+
     def _set_window_icon(self):
-        """Define icone da janela"""
+        """Define o icone da janela"""
         icon_paths = [
+            os.path.expanduser("~/.local/share/TitanLauncher/assets/icons/titan_icon.png"),
             Path(__file__).parent.parent / "assets" / "icons" / "titan_icon.png",
-            Path.home() / ".local" / "share" / "icons" / "hicolor" / "256x256" / "apps" / "titan-launcher.png",
+            "/usr/share/icons/hicolor/256x256/apps/titan-launcher.png",
+            "assets/icons/titan_icon.png"
         ]
         
-        for icon_path in icon_paths:
-            if icon_path.exists() and ImageTk:
+        icon_loaded = False
+        for path in icon_paths:
+            if os.path.exists(path):
                 try:
-                    img = Image.open(icon_path)
-                    photo = ImageTk.PhotoImage(img)
-                    self.root.iconphoto(True, photo)
-                    self._icon_ref = photo  # Manter referencia
-                    return
-                except Exception:
-                    pass
+                    if Image and ImageTk:
+                        img = Image.open(path)
+                        photo = ImageTk.PhotoImage(img)
+                        self.root.iconphoto(True, photo)
+                        self.root._icon_photo = photo # Keep reference
+                        icon_loaded = True
+                        print(f"[TITAN] Icone carregado de: {path}")
+                        break
+                    else:
+                        # Fallback tk.PhotoImage (suporta PNG no tk 8.6+)
+                        photo = tk.PhotoImage(file=path)
+                        self.root.iconphoto(True, photo)
+                        self.root._icon_photo = photo
+                        icon_loaded = True
+                        print(f"[TITAN] Icone carregado (tk) de: {path}")
+                        break
+                except Exception as e:
+                    print(f"[TITAN] Erro ao carregar icone {path}: {e}")
         
-    def create_ui(self):
-        """Cria interface do usuario"""
+        if not icon_loaded:
+            print("[TITAN] Aviso: Icone nao encontrado, usando padrao do sistema")
+
+    def _build_layout(self):
+        """Constroi a interface principal"""
         theme = self.theme_manager.get_theme() if self.theme_manager else {
             'bg_primary': '#1a1a1a',
             'bg_secondary': '#2b2b2b',
             'bg_tertiary': '#353535',
+            'accent': '#4a9eff',
             'fg_primary': '#ffffff',
             'fg_secondary': '#aaaaaa',
-            'accent': '#4a9eff',
-            'success': '#4caf50',
-            'warning': '#ff9800',
-            'error': '#f44336',
-            'border': '#454545',
+            'border': '#454545'
         }
         
         # Container principal
         main_container = tk.Frame(self.root, bg=theme.get('bg_primary', '#1a1a1a'))
         main_container.pack(fill='both', expand=True)
         
-        # ===== HEADER =====
-        header = tk.Frame(main_container, height=70, bg='#0d0d0d')
-        header.pack(fill='x', padx=0, pady=0)
-        header.pack_propagate(False)
+        # Top bar (opcional, estilo Ubuntu)
+        # top_bar = tk.Frame(main_container, height=30, bg='#000000')
+        # top_bar.pack(fill='x', side='top')
         
-        # Titulo
-        title_label = tk.Label(
-            header,
-            text=f"TITAN LAUNCHER v{self.VERSION}",
-            font=("Helvetica", 18, "bold"),
-            bg='#0d0d0d',
-            fg=theme.get('accent', '#4a9eff')
-        )
-        title_label.pack(side='left', padx=15, pady=10)
-        
-        # Subtitulo Ubuntu
-        ubuntu_label = tk.Label(
-            header,
-            text="UBUNTU EDITION",
-            font=("Helvetica", 8),
-            bg='#0d0d0d',
-            fg='#ff6b35'
-        )
-        ubuntu_label.pack(side='left', pady=10)
-        
-        # Botao de Configuracoes
-        try:
-            settings_btn = tk.Button(
-                header,
-                text="⚙",
-                font=("Helvetica", 16),
-                bg='#0d0d0d',
-                fg='white',
-                bd=0,
-                cursor='hand2',
-                command=self.show_settings,
-                activebackground='#2b2b2b'
-            )
-            settings_btn.pack(side='right', padx=15)
-        except Exception:
-            pass
-        
-        # Botao Java
-        try:
-            java_btn = tk.Button(
-                header,
-                text="☕",
-                font=("Helvetica", 16),
-                bg='#0d0d0d',
-                fg='#ff9800',
-                bd=0,
-                cursor='hand2',
-                command=self.show_java_info,
-                activebackground='#2b2b2b'
-            )
-            java_btn.pack(side='right', padx=5)
-        except Exception:
-            pass
-        
-        # ===== AREA DE CONTEUDO =====
-        content_frame = tk.Frame(
-            main_container,
-            bg=theme.get('bg_primary', '#1a1a1a')
-        )
-        content_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        # Content Area (Sidebar + Main)
+        content_frame = tk.Frame(main_container, bg=theme.get('bg_primary', '#1a1a1a'))
+        content_frame.pack(fill='both', expand=True)
         
         # ===== SIDEBAR =====
-        sidebar = tk.Frame(content_frame, width=200, bg=theme.get('bg_primary', '#1a1a1a'))
-        sidebar.pack(side='left', fill='y', padx=(0, 10))
+        sidebar = tk.Frame(
+            content_frame,
+            width=220,
+            bg=theme.get('bg_primary', '#1a1a1a'),
+            padx=0,
+            pady=0
+        )
+        sidebar.pack(side='left', fill='y')
         sidebar.pack_propagate(False)
         
         # Logo area
@@ -507,8 +466,8 @@ class TitanLauncher:
         
         tk.Label(
             logo_frame,
-            text="🎮",
-            font=("Helvetica", 28),
+            text="TL",
+            font=("Helvetica", 24, "bold"),
             bg=theme.get('bg_primary', '#1a1a1a'),
             fg='white'
         ).pack()
@@ -518,11 +477,11 @@ class TitanLauncher:
         
         # Menu items
         menu_items = [
-            ("🏠  Inicio", self.show_home),
-            ("👤  Perfis", self.show_profiles),
-            ("📦  Versoes", self.show_versions),
-            ("🌈  Shaders", self.show_shaders),
-            ("💾  Backups", self.show_backups),
+            ("Inicio", self.show_home),
+            ("Perfis", self.show_profiles),
+            ("Versoes", self.show_versions),
+            ("Shaders", self.show_shaders),
+            ("Backups", self.show_backups),
         ]
         
         self.menu_buttons = []
@@ -657,7 +616,7 @@ class TitanLauncher:
         # Titulo
         tk.Label(
             container,
-            text=f"Titan Launcher v{self.VERSION}",
+            text="Titan Launcher",
             font=("Helvetica", 28, "bold"),
             bg=theme.get('bg_secondary', '#2b2b2b'),
             fg='white'
@@ -692,7 +651,7 @@ class TitanLauncher:
         if self.profiles:
             tk.Button(
                 btn_frame,
-                text="🎮 Jogar Ultimo Perfil",
+                text="Jogar Ultimo Perfil",
                 command=self.play_last_profile,
                 bg=theme.get('success', '#4caf50'),
                 fg='white',
@@ -785,7 +744,7 @@ class TitanLauncher:
         ).pack(anchor='w')
         
         # Botoes
-        btn_text = "▶ Jogar" if profile.installed else "↓ Instalar"
+        btn_text = "Jogar" if profile.installed else "Instalar"
         btn_bg = '#4caf50' if profile.installed else '#ff9800'
         
         tk.Button(
@@ -798,41 +757,35 @@ class TitanLauncher:
             pady=5,
             font=("Helvetica", 10, "bold"),
             cursor='hand2',
-            command=lambda p=profile: self.launch_profile(p)
+            command=lambda p=profile: self.play_profile(p) if p.installed else self.install_minecraft(p)
         ).pack(side='right', padx=5)
         
         tk.Button(
             card,
-            text="⚙",
+            text="Editar",
             bg='#454545',
             fg='white',
             bd=0,
             padx=10,
             pady=5,
-            font=("Helvetica", 10),
+            font=("Helvetica", 9),
             cursor='hand2',
             command=lambda p=profile: self.edit_profile(p)
         ).pack(side='right', padx=5)
 
     def show_profiles(self):
-        """Tela de gerenciamento de perfis"""
+        """Tela de lista de perfis"""
         self.clear_main_frame()
         self.current_view = "profiles"
         
-        theme = self.theme_manager.get_theme() if self.theme_manager else {
-            'bg_secondary': '#2b2b2b',
-            'accent': '#4a9eff',
-        }
-        
-        # Header
-        header = tk.Frame(self.main_frame, bg=theme.get('bg_secondary', '#2b2b2b'))
-        header.pack(fill='x', padx=20, pady=15)
+        header = tk.Frame(self.main_frame, bg='#2b2b2b', padx=30, pady=20)
+        header.pack(fill='x')
         
         tk.Label(
             header,
-            text="Gerenciar Perfis",
+            text="Meus Perfis",
             font=("Helvetica", 20, "bold"),
-            bg=theme.get('bg_secondary', '#2b2b2b'),
+            bg='#2b2b2b',
             fg='white'
         ).pack(side='left')
         
@@ -840,163 +793,147 @@ class TitanLauncher:
             header,
             text="+ Novo Perfil",
             command=self.create_new_profile,
-            bg=theme.get('accent', '#4a9eff'),
+            bg='#4a9eff',
             fg='white',
-            bd=0,
-            padx=15,
-            pady=5,
             font=("Helvetica", 10, "bold"),
+            padx=15,
+            pady=8,
+            bd=0,
             cursor='hand2'
         ).pack(side='right')
         
-        # Container
-        container = tk.Frame(self.main_frame, bg=theme.get('bg_secondary', '#2b2b2b'))
-        container.pack(fill='both', expand=True, padx=20, pady=10)
+        # Scrollable list
+        canvas = tk.Canvas(self.main_frame, bg='#2b2b2b', highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=canvas.yview)
+        scroll_frame = tk.Frame(canvas, bg='#2b2b2b')
+        
+        scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scroll_frame, anchor="nw", width=800)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True, padx=30)
+        scrollbar.pack(side="right", fill="y")
         
         if not self.profiles:
             tk.Label(
-                container,
+                scroll_frame,
                 text="Nenhum perfil criado ainda.",
-                font=("Helvetica", 12),
-                bg=theme.get('bg_secondary', '#2b2b2b'),
-                fg='#aaaaaa'
+                bg='#2b2b2b',
+                fg='#aaaaaa',
+                font=("Helvetica", 12)
             ).pack(pady=50)
-            
-            tk.Button(
-                container,
-                text="Criar Primeiro Perfil",
-                command=self.create_new_profile,
-                bg=theme.get('accent', '#4a9eff'),
-                fg='white',
-                font=("Helvetica", 12, "bold"),
-                padx=20,
-                pady=10,
-                bd=0,
-                cursor='hand2'
-            ).pack(pady=20)
             return
-        
-        # Listar perfis
-        for pid, profile in self.profiles.items():
-            card = tk.Frame(container, bg='#353535', pady=10, padx=15)
-            card.pack(fill='x', pady=5)
+            
+        for profile in self.profiles.values():
+            p_frame = tk.Frame(scroll_frame, bg='#353535', padx=20, pady=15)
+            p_frame.pack(fill='x', pady=5)
+            
+            # Avatar (simulado)
+            avatar_frame = tk.Frame(p_frame, width=48, height=48, bg='#454545')
+            avatar_frame.pack(side='left', padx=(0, 15))
+            avatar_frame.pack_propagate(False)
+            
+            # Tentar carregar avatar do steve
+            steve_path = Path(__file__).parent.parent / "assets" / "avatars" / "steve.png"
+            if steve_path.exists() and Image and ImageTk:
+                try:
+                    img = Image.open(steve_path).resize((48, 48), Image.NEAREST)
+                    photo = ImageTk.PhotoImage(img)
+                    lbl = tk.Label(avatar_frame, image=photo, bg='#454545')
+                    lbl.image = photo
+                    lbl.pack()
+                except:
+                    tk.Label(avatar_frame, text="MC", fg='white', bg='#454545').pack(expand=True)
+            else:
+                tk.Label(avatar_frame, text="MC", fg='white', bg='#454545').pack(expand=True)
             
             # Info
-            info = tk.Frame(card, bg='#353535')
+            info = tk.Frame(p_frame, bg='#353535')
             info.pack(side='left', fill='y')
             
-            tk.Label(
-                info,
-                text=profile.name,
-                font=("Helvetica", 12, "bold"),
-                bg='#353535',
-                fg='white'
-            ).pack(anchor='w')
+            tk.Label(info, text=profile.name, font=("Helvetica", 12, "bold"), bg='#353535', fg='white').pack(anchor='w')
+            tk.Label(info, text=f"Versao: {profile.mc_version} | Loader: {profile.mod_loader}", font=("Helvetica", 9), bg='#353535', fg='#aaaaaa').pack(anchor='w')
             
-            tk.Label(
-                info,
-                text=f"[{profile.mc_version} - {profile.mod_loader} - {profile.ram_gb}GB RAM]",
-                bg='#353535',
-                fg='#aaaaaa',
-                font=("Helvetica", 9)
-            ).pack(anchor='w')
+            # Actions
+            actions = tk.Frame(p_frame, bg='#353535')
+            actions.pack(side='right')
             
-            # Botoes
-            btn_frame = tk.Frame(card, bg='#353535')
-            btn_frame.pack(side='right')
-            
-            btn_text = "▶ Jogar" if profile.installed else "↓ Instalar"
+            btn_text = "Jogar" if profile.installed else "Instalar"
             btn_bg = '#4caf50' if profile.installed else '#ff9800'
             
             tk.Button(
-                btn_frame,
+                actions,
                 text=btn_text,
                 bg=btn_bg,
                 fg='white',
+                font=("Helvetica", 10, "bold"),
+                padx=15,
                 bd=0,
-                padx=12,
-                pady=3,
-                font=("Helvetica", 9, "bold"),
                 cursor='hand2',
-                command=lambda p=profile: self.launch_profile(p)
-            ).pack(side='left', padx=2)
+                command=lambda p=profile: self.play_profile(p) if p.installed else self.install_minecraft(p)
+            ).pack(side='left', padx=5)
             
             tk.Button(
-                btn_frame,
-                text="🗑",
+                actions,
+                text="Config",
+                bg='#454545',
+                fg='white',
+                font=("Helvetica", 9),
+                padx=10,
+                bd=0,
+                cursor='hand2',
+                command=lambda p=profile: self.edit_profile(p)
+            ).pack(side='left', padx=5)
+            
+            tk.Button(
+                actions,
+                text="Excluir",
                 bg='#f44336',
                 fg='white',
-                bd=0,
-                padx=8,
-                pady=3,
                 font=("Helvetica", 9),
+                padx=10,
+                bd=0,
                 cursor='hand2',
                 command=lambda p=profile: self.delete_profile(p)
-            ).pack(side='left', padx=2)
+            ).pack(side='left', padx=5)
 
     def show_versions(self):
-        """Tela de versoes disponiveis"""
+        """Tela de versoes do Minecraft"""
         self.clear_main_frame()
         self.current_view = "versions"
         
         tk.Label(
             self.main_frame,
-            text="Versoes Disponiveis",
+            text="Versoes do Minecraft",
             font=("Helvetica", 20, "bold"),
             bg='#2b2b2b',
             fg='white'
         ).pack(pady=20)
         
         if self.versions_loading:
-            tk.Label(
-                self.main_frame,
-                text="Carregando versoes do Minecraft...",
-                bg='#2b2b2b',
-                fg='#aaaaaa',
-                font=("Helvetica", 11)
-            ).pack(pady=20)
-        elif not self.available_versions:
-            tk.Label(
-                self.main_frame,
-                text="Nenhuma versao carregada.",
-                bg='#2b2b2b',
-                fg='#aaaaaa'
-            ).pack(pady=20)
+            tk.Label(self.main_frame, text="Carregando lista de versoes...", bg='#2b2b2b', fg='#aaaaaa').pack(pady=20)
+            return
             
-            tk.Button(
-                self.main_frame,
-                text="Recarregar",
-                command=lambda: threading.Thread(target=self.load_versions, daemon=True).start(),
-                bg='#4a9eff',
-                fg='white',
-                bd=0,
-                padx=15,
-                pady=5,
-                cursor='hand2'
-            ).pack(pady=10)
-        else:
-            # Frame com scrollbar
-            frame_container = tk.Frame(self.main_frame, bg='#2b2b2b')
-            frame_container.pack(fill='both', expand=True, padx=20, pady=10)
+        if not self.available_versions:
+            tk.Label(self.main_frame, text="Nao foi possivel carregar as versoes.", bg='#2b2b2b', fg='#f44336').pack(pady=20)
+            tk.Button(self.main_frame, text="Tentar Novamente", command=self.load_versions).pack()
+            return
             
-            canvas = tk.Canvas(frame_container, bg='#2b2b2b', highlightthickness=0)
-            scrollbar = ttk.Scrollbar(frame_container, orient="vertical", command=canvas.yview)
-            scroll_frame = tk.Frame(canvas, bg='#2b2b2b')
-            
-            scroll_frame.bind(
-                "<Configure>",
-                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-            )
-            
-            canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
-            canvas.configure(yscrollcommand=scrollbar.set)
-            
-            canvas.pack(side="left", fill="both", expand=True)
-            scrollbar.pack(side="right", fill="y")
-            
-            # Exibir versoes
-            release_versions = [v for v in self.available_versions if v.get('type') == 'release']
-            
+        # Listar algumas versoes
+        canvas = tk.Canvas(self.main_frame, bg='#2b2b2b', highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=canvas.yview)
+        scroll_frame = tk.Frame(canvas, bg='#2b2b2b')
+        
+        scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scroll_frame, anchor="nw", width=800)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True, padx=30)
+        scrollbar.pack(side="right", fill="y")
+        
+        release_versions = [v for v in self.available_versions if v.get('type') == 'release']
+        
+        if release_versions:
             tk.Label(
                 scroll_frame,
                 text=f"Releases encontradas: {len(release_versions)}",
@@ -1259,55 +1196,51 @@ class TitanLauncher:
         
         tk.Button(dir_frame, text="Procurar...", command=browse, bg='#454545', fg='white', bd=0, padx=10, cursor='hand2').pack(side='right', padx=(5, 0))
         
-        # Java path
-        java_path = JavaManager.find_java() or "java"
-        tk.Label(content, text="Java:", bg='#2b2b2b', fg='white', font=("Helvetica", 10)).pack(anchor='w', padx=20, pady=(15, 5))
-        java_var = tk.StringVar(value=java_path)
-        tk.Entry(content, textvariable=java_var, bg='#353535', fg='white', bd=0, font=("Helvetica", 9), insertbackground='white', state='readonly').pack(fill='x', padx=20, pady=5)
-        
-        # Botao salvar
         def save():
-            # Validacoes
             name = name_var.get().strip()
             if not name:
-                messagebox.showerror("Erro", "Nome do perfil e obrigatorio!")
+                messagebox.showerror("Erro", "Nome do perfil obrigatorio!")
                 return
             
-            if name in [p.name for p in self.profiles.values()]:
-                messagebox.showerror("Erro", f"Ja existe um perfil chamado '{name}'!")
-                return
+            pid = str(uuid.uuid4())[:8]
+            mc_ver = version_var.get()
+            loader = loader_var.get()
             
-            custom_path = dir_var.get().strip()
-            final_dir = custom_path if custom_path else str(self.minecraft_dir / name)
+            # Definir diretorio
+            custom_dir = dir_var.get().strip()
+            if custom_dir:
+                game_dir = custom_dir
+            else:
+                game_dir = str(self.minecraft_dir / pid)
             
             profile = GameProfile(
-                id=str(uuid.uuid4())[:8],
+                id=pid,
                 name=name,
-                mc_version=version_var.get(),
-                mod_loader=loader_var.get(),
+                mc_version=mc_ver,
+                mod_loader=loader,
                 loader_version="latest",
-                java_path=java_var.get(),
+                java_path="java",
                 ram_gb=ram_var.get(),
                 username=username_var.get().strip() or "Player",
                 uuid=str(uuid.uuid4()),
-                game_directory=final_dir,
-                game_directory_custom=custom_path if custom_path else None,
+                game_directory=game_dir,
+                game_directory_custom=custom_dir if custom_dir else None,
                 created_at=datetime.now().isoformat(),
                 installed=False
             )
             
-            self.profiles[profile.id] = profile
+            self.profiles[pid] = profile
             self.save_profiles()
             dialog.destroy()
             
             if self.notification_manager:
-                self.notification_manager.show("Sucesso", f"Perfil '{profile.name}' criado!", "success")
+                self.notification_manager.show("Sucesso", f"Perfil '{name}' criado!", "success")
             
             self.show_profiles()
-        
+            
         tk.Button(
             content,
-            text="SALVAR PERFIL",
+            text="CRIAR PERFIL",
             command=save,
             bg='#4a9eff',
             fg='white',
@@ -1317,34 +1250,36 @@ class TitanLauncher:
             cursor='hand2',
             activebackground='#357abd'
         ).pack(fill='x', padx=20, pady=30)
+
+    # ===== ACOES DE PERFIL =====
+
+    def play_last_profile(self):
+        """Joga o ultimo perfil acessado"""
+        if not self.profiles:
+            return
+            
+        sorted_profiles = sorted(
+            self.profiles.values(),
+            key=lambda p: p.last_played or '',
+            reverse=True
+        )
         
-        # Espaco extra para scroll
-        tk.Frame(content, bg='#2b2b2b', height=20).pack()
+        profile = sorted_profiles[0]
+        self.play_profile(profile)
+
+    def play_profile(self, profile):
+        """Executa um perfil"""
+        if not profile.installed:
+            self.install_minecraft(profile)
+            return
+            
+        self.run_minecraft(profile)
 
     def edit_profile(self, profile):
         """Editar perfil existente"""
-        # TODO: Implementar edicao completa
-        messagebox.showinfo(
-            "Editar Perfil",
-            f"Perfil: {profile.name}\nVersao: {profile.mc_version}\nRAM: {profile.ram_gb}GB\nDiretorio: {profile.game_directory}\n\nUse 'Excluir' e recrie para alterar configuracoes."
-        )
-
-    def delete_profile(self, profile):
-        """Excluir perfil"""
-        if messagebox.askyesno("Confirmar", f"Excluir perfil '{profile.name}'?\n\nOs arquivos do Minecraft NAO serao excluidos."):
-            del self.profiles[profile.id]
-            self.save_profiles()
-            
-            if self.notification_manager:
-                self.notification_manager.show("Excluido", f"Perfil '{profile.name}' removido", "info")
-            
-            self.show_profiles()
-
-    def show_settings(self):
-        """Configuracoes globais"""
         dialog = tk.Toplevel(self.root)
-        dialog.title("Configuracoes Globais")
-        dialog.geometry("400x550")
+        dialog.title("Editar Perfil")
+        dialog.geometry("500x600")
         dialog.configure(bg='#2b2b2b')
         dialog.transient(self.root)
         dialog.grab_set()
@@ -1352,126 +1287,106 @@ class TitanLauncher:
         
         # Centralizar
         dialog.update_idletasks()
-        x = (dialog.winfo_screenwidth() // 2) - 200
-        y = (dialog.winfo_screenheight() // 2) - 275
+        x = (dialog.winfo_screenwidth() // 2) - 250
+        y = (dialog.winfo_screenheight() // 2) - 300
         dialog.geometry(f"+{x}+{y}")
         
-        tk.Label(
-            dialog,
-            text="Configuracoes do Launcher",
-            font=("Helvetica", 16, "bold"),
-            bg='#2b2b2b',
-            fg='white'
-        ).pack(pady=20)
+        tk.Label(dialog, text="Editar Perfil", font=("Helvetica", 16, "bold"),
+                 bg='#2b2b2b', fg='#4a9eff').pack(pady=(20, 15))
         
-        # Tema
-        tk.Label(dialog, text="Tema Visual:", bg='#2b2b2b', fg='white', font=("Helvetica", 11)).pack(pady=5)
+        # Nome
+        tk.Label(dialog, text="Nome:", bg='#2b2b2b', fg='white', font=("Helvetica", 10)).pack(anchor='w', padx=20, pady=(10,5))
+        name_var = tk.StringVar(value=profile.name)
+        tk.Entry(dialog, textvariable=name_var, bg='#353535', fg='white', bd=0, font=("Helvetica", 11), insertbackground='white').pack(fill='x', padx=20, pady=5)
         
-        if self.theme_manager:
-            themes = self.theme_manager.get_all_themes()
-            theme_var = tk.StringVar(value=self.theme_manager.current_theme)
-            cb = ttk.Combobox(dialog, textvariable=theme_var, values=[t[0] for t in themes], state="readonly")
-            cb.pack(pady=5, fill='x', padx=30)
+        # Versão
+        tk.Label(dialog, text="Versao do Minecraft:", bg='#2b2b2b', fg='white', font=("Helvetica", 10)).pack(anchor='w', padx=20, pady=(10,5))
+        version_var = tk.StringVar(value=profile.mc_version)
+        versions = ["1.21.4", "1.21.1", "1.20.6", "1.20.1", "1.19.4", "1.19.2", "1.18.2", "1.16.5", "1.12.2", "1.8.9"]
+        ttk.Combobox(dialog, textvariable=version_var, values=versions, state="readonly").pack(fill='x', padx=20, pady=5)
+        
+        # Mod Loader
+        tk.Label(dialog, text="Mod Loader:", bg='#2b2b2b', fg='white', font=("Helvetica", 10)).pack(anchor='w', padx=20, pady=(10,5))
+        loader_var = tk.StringVar(value=profile.mod_loader)
+        ttk.Combobox(dialog, textvariable=loader_var, values=["vanilla", "forge", "fabric"], state="readonly").pack(fill='x', padx=20, pady=5)
+        
+        # RAM
+        tk.Label(dialog, text="RAM (GB):", bg='#2b2b2b', fg='white', font=("Helvetica", 10)).pack(anchor='w', padx=20, pady=(10,5))
+        ram_var = tk.IntVar(value=profile.ram_gb)
+        tk.Spinbox(dialog, from_=2, to=32, textvariable=ram_var, bg='#353535', fg='white', font=("Helvetica", 11)).pack(fill='x', padx=20, pady=5)
+        
+        # Username
+        tk.Label(dialog, text="Nome de Usuario:", bg='#2b2b2b', fg='white', font=("Helvetica", 10)).pack(anchor='w', padx=20, pady=(10,5))
+        username_var = tk.StringVar(value=profile.username)
+        tk.Entry(dialog, textvariable=username_var, bg='#353535', fg='white', bd=0, font=("Helvetica", 11), insertbackground='white').pack(fill='x', padx=20, pady=5)
+        
+        def save_changes():
+            old_version = profile.mc_version
+            old_loader = profile.mod_loader
             
-            def apply_theme():
-                self.theme_manager.set_theme(theme_var.get())
-                messagebox.showinfo("Tema", "Tema aplicado! Reinicie para efeito completo.")
-                if self.config_manager:
-                    self.config_manager.set('theme', theme_var.get())
+            profile.name = name_var.get().strip() or profile.name
+            profile.mc_version = version_var.get()
+            profile.mod_loader = loader_var.get()
+            profile.ram_gb = ram_var.get()
+            profile.username = username_var.get().strip() or profile.username
             
-            tk.Button(dialog, text="Aplicar Tema", command=apply_theme, bg='#4a9eff', fg='white', bd=0, padx=15, pady=5, cursor='hand2').pack(pady=10)
+            # Se mudou versão ou mod loader, marcar como não instalado
+            if profile.mc_version != old_version or profile.mod_loader != old_loader:
+                profile.installed = False
+                # Limpar diretório do jogo antigo se existir
+                import shutil
+                game_dir = Path(profile.game_directory)
+                if game_dir.exists():
+                    try:
+                        shutil.rmtree(game_dir)
+                    except Exception as e:
+                        print(f"[TITAN] Aviso ao limpar diretorio: {e}")
+            
+            self.save_profiles()
+            dialog.destroy()
+            
+            if self.notification_manager:
+                self.notification_manager.show("Atualizado", f"Perfil '{profile.name}' atualizado!", "success")
+            
+            # Atualizar a view atual
+            if self.current_view == "home":
+                self.show_home()
+            elif self.current_view == "profiles":
+                self.show_profiles()
         
-        # Separador
-        tk.Frame(dialog, height=2, bg='#454545').pack(fill='x', padx=30, pady=15)
-        
-        # Diretorio de dados
-        tk.Label(dialog, text="Diretorio de Dados:", bg='#2b2b2b', fg='white', font=("Helvetica", 11)).pack(pady=5)
-        tk.Label(dialog, text=str(self.config_dir), bg='#2b2b2b', fg='#aaaaaa', font=("Helvetica", 9)).pack()
-        
-        tk.Button(
-            dialog,
-            text="Abrir Pasta",
-            command=lambda: self._open_folder(self.config_dir),
-            bg='#454545',
-            fg='white',
-            bd=0,
-            padx=15,
-            pady=5,
-            cursor='hand2'
-        ).pack(pady=5)
-        
-        # Separador
-        tk.Frame(dialog, height=2, bg='#454545').pack(fill='x', padx=30, pady=15)
-        
-        # Java
-        tk.Label(dialog, text="Java:", bg='#2b2b2b', fg='white', font=("Helvetica", 11)).pack(pady=5)
-        
-        java = JavaManager.find_java()
-        java_version = JavaManager.get_java_version(java) if java else "Nao encontrado"
-        
-        tk.Label(dialog, text=f"Caminho: {java or 'N/A'}", bg='#2b2b2b', fg='#aaaaaa', font=("Helvetica", 9)).pack()
-        tk.Label(dialog, text=f"Versao: {java_version or 'N/A'}", bg='#2b2b2b', fg='#aaaaaa', font=("Helvetica", 9)).pack()
-        
-        # Separador
-        tk.Frame(dialog, height=2, bg='#454545').pack(fill='x', padx=30, pady=15)
-        
-        # Versao
-        tk.Label(dialog, text=f"Titan Launcher v{self.VERSION}", bg='#2b2b2b', fg='#666666', font=("Helvetica", 9)).pack(pady=(20, 5))
-        tk.Label(dialog, text="Ubuntu Edition", bg='#2b2b2b', fg='#ff6b35', font=("Helvetica", 8)).pack()
+        tk.Button(dialog, text="SALVAR ALTERACOES", command=save_changes,
+                  bg='#4a9eff', fg='white', font=("Helvetica", 12, "bold"),
+                  pady=12, bd=0, cursor='hand2', activebackground='#357abd').pack(fill='x', padx=20, pady=30)
 
-    def show_java_info(self):
-        """Mostra informacoes sobre Java"""
-        java = JavaManager.find_java()
-        
-        if java:
-            version = JavaManager.get_java_version(java)
-            messagebox.showinfo(
-                "Java Instalado",
-                f"Java encontrado!\n\nCaminho: {java}\nVersao: {version}\n\nStatus: OK para rodar Minecraft"
-            )
-        else:
-            result = messagebox.askyesno(
-                "Java Nao Encontrado",
-                "Java nao esta instalado ou nao foi encontrado.\n\n"
-                "Para instalar no Ubuntu, execute no terminal:\n\n"
-                "sudo apt update && sudo apt install openjdk-21-jre\n\n"
-                "Deseja copiar o comando para a area de transferencia?"
-            )
-            if result:
-                self.root.clipboard_clear()
-                self.root.clipboard_append("sudo apt update && sudo apt install -y openjdk-21-jre")
-                messagebox.showinfo("Copiado", "Comando copiado! Cole no terminal com Ctrl+Shift+V")
-
-    def _open_folder(self, path):
-        """Abre pasta no gerenciador de arquivos"""
-        try:
-            subprocess.Popen(["xdg-open", str(path)])
-        except Exception as e:
-            messagebox.showerror("Erro", f"Nao foi possivel abrir a pasta: {e}")
-
-    # ===== ACAO PRINCIPAL =====
-
-    def play_last_profile(self):
-        """Joga o ultimo perfil usado"""
-        if not self.profiles:
-            messagebox.showinfo("Perfis", "Nenhum perfil criado ainda.")
-            return
-        
-        sorted_profiles = sorted(
-            self.profiles.values(),
-            key=lambda p: p.last_played or p.created_at,
-            reverse=True
+    def delete_profile(self, profile):
+        """Excluir perfil"""
+        result = messagebox.askyesnocancel(
+            "Confirmar Exclusao",
+            f"Excluir perfil '{profile.name}'?\n\n"
+            f"Sim = Excluir perfil E arquivos do jogo\n"
+            f"Nao = Excluir apenas o perfil (manter arquivos)\n"
+            f"Cancelar = Nao excluir nada"
         )
         
-        if sorted_profiles:
-            self.launch_profile(sorted_profiles[0])
-
-    def launch_profile(self, profile):
-        """Inicia perfil (instala se necessario)"""
-        if not profile.installed:
-            self.install_minecraft(profile)
-        else:
-            self.run_minecraft(profile)
+        if result is None:  # Cancelar
+            return
+        
+        if result:  # Sim - deletar tudo
+            import shutil
+            game_dir = Path(profile.game_directory)
+            if game_dir.exists():
+                try:
+                    shutil.rmtree(game_dir)
+                except Exception as e:
+                    print(f"[TITAN] Erro ao remover arquivos: {e}")
+        
+        del self.profiles[profile.id]
+        self.save_profiles()
+        
+        if self.notification_manager:
+            self.notification_manager.show("Excluido", f"Perfil '{profile.name}' removido", "info")
+        
+        self.show_profiles()
 
     def install_minecraft(self, profile):
         """Instala Minecraft para o perfil"""
@@ -1480,7 +1395,8 @@ class TitanLauncher:
             return
         
         # Verificar Java
-        if not JavaManager.find_java():
+        java_path = JavaManager.find_java()
+        if not java_path:
             messagebox.showerror(
                 "Java Necessario",
                 "Java nao encontrado! Instale com:\n\nsudo apt install openjdk-21-jre"
@@ -1494,22 +1410,69 @@ class TitanLauncher:
                 path = Path(profile.game_directory)
                 path.mkdir(parents=True, exist_ok=True)
                 
-                self.set_status(f"Instalando {profile.mc_version}...")
+                callback = {
+                    'setMax': progress.set_max,
+                    'setProgress': progress.set_progress
+                }
                 
-                mll.install.install_minecraft_version(
-                    profile.mc_version,
-                    str(path),
-                    callback={
-                        'setMax': progress.set_max,
-                        'setProgress': progress.set_progress
-                    }
-                )
+                if profile.mod_loader == "forge":
+                    self.set_status(f"Instalando Forge para {profile.mc_version}...")
+                    progress.set_status(f"Buscando Forge para {profile.mc_version}...")
+                    
+                    # Encontrar versão do Forge
+                    forge_version = mll.forge.find_forge_version(profile.mc_version)
+                    if not forge_version:
+                        raise Exception(f"Forge nao disponivel para Minecraft {profile.mc_version}")
+                    
+                    if not mll.forge.supports_automatic_install(forge_version):
+                        raise Exception(f"Forge {forge_version} nao suporta instalacao automatica")
+                    
+                    progress.set_status(f"Instalando Forge {forge_version}...")
+                    
+                    # Instalar Forge (instala vanilla + forge)
+                    mll.forge.install_forge_version(
+                        forge_version,
+                        str(path),
+                        callback=callback,
+                        java=java_path
+                    )
+                    
+                    # Salvar o version ID do forge para usar no launch
+                    profile.loader_version = mll.forge.forge_to_installed_version(forge_version)
+                    
+                elif profile.mod_loader == "fabric":
+                    self.set_status(f"Instalando Fabric para {profile.mc_version}...")
+                    progress.set_status(f"Instalando Fabric para {profile.mc_version}...")
+                    
+                    # Instalar Fabric
+                    mll.fabric.install_fabric(
+                        profile.mc_version,
+                        str(path),
+                        callback=callback,
+                        java=java_path
+                    )
+                    
+                    # Fabric version ID format
+                    loader_ver = mll.fabric.get_latest_loader_version()
+                    profile.loader_version = f"fabric-loader-{loader_ver}-{profile.mc_version}"
+                    
+                else:
+                    # Vanilla
+                    self.set_status(f"Instalando {profile.mc_version}...")
+                    progress.set_status(f"Instalando Minecraft {profile.mc_version}...")
+                    
+                    mll.install.install_minecraft_version(
+                        profile.mc_version,
+                        str(path),
+                        callback=callback
+                    )
+                    profile.loader_version = profile.mc_version
                 
                 profile.installed = True
                 self.save_profiles()
                 
                 progress.close()
-                self.root.after(0, lambda: messagebox.showinfo("Sucesso", f"Minecraft {profile.mc_version} instalado com sucesso!"))
+                self.root.after(0, lambda: messagebox.showinfo("Sucesso", f"{profile.name} instalado com sucesso!"))
                 self.root.after(0, self.show_profiles)
                 self.set_status("Instalacao concluida")
                 
@@ -1557,8 +1520,10 @@ class TitanLauncher:
                 'executablePath': java_bin
             }
             
+            # Usar loader_version se disponível (contém o ID correto do Forge/Fabric)
+            version_id = profile.loader_version if profile.loader_version and profile.loader_version != "latest" else profile.mc_version
             command = mll.command.get_minecraft_command(
-                profile.mc_version,
+                version_id,
                 profile.game_directory,
                 options
             )

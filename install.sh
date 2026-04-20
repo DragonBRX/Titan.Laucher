@@ -1,6 +1,6 @@
 #!/bin/bash
 #=====================================================
-# TITAN LAUNCHER v3.0 - UBUNTU/DEBIAN EDITION
+# TITAN LAUNCHER - UBUNTU/DEBIAN EDITION
 # Script de Instalacao Automatica Otimizado
 #=====================================================
 
@@ -56,7 +56,7 @@ cat << "EOF"
                                    __/ | |                   
                                   |___/|_|                   
 =============================================================
-         UBUNTU/DEBIAN EDITION v3.0 - Instalador
+         UBUNTU/DEBIAN EDITION - Instalador
 =============================================================
 EOF
 echo -e "${NC}"
@@ -321,183 +321,88 @@ install_app_files() {
     if [ -f "$SCRIPT_DIR/TitanLauncher/requirements.txt" ]; then
         cp "$SCRIPT_DIR/TitanLauncher/requirements.txt" "$INSTALL_DIR/"
     fi
+}
+
+# ============================================================
+# ETAPA 5: CRIAR WRAPPER DE EXECUCAO
+# ============================================================
+create_launcher_wrapper() {
+    log_step "Criando wrapper de execucao..."
     
-    # Criar script de execucao principal
-    log_info "Criando executavel..."
-    
-    cat > "$INSTALL_DIR/titan-launcher" << 'EOF'
+    cat > "$INSTALL_DIR/titan-launcher" << EOF
 #!/bin/bash
-# Titan Launcher - Script de Execucao
-
-INSTALL_DIR="$HOME/.local/share/TitanLauncher"
-CONFIG_DIR="$HOME/.config/titanlauncher"
-VENV_DIR="$INSTALL_DIR/venv"
-
-# Verificar ambiente virtual
-if [ ! -d "$VENV_DIR" ]; then
-    echo "[ERRO] Ambiente virtual nao encontrado!"
-    echo "Execute o instalador novamente."
-    exit 1
-fi
-
-# Ativar venv e executar
-source "$VENV_DIR/bin/activate"
-export PYTHONPATH="$INSTALL_DIR/src:$PYTHONPATH"
-
-# Criar diretorios se nao existirem
-mkdir -p "$CONFIG_DIR"
-mkdir -p "$CONFIG_DIR/minecraft"
-mkdir -p "$CONFIG_DIR/backups"
-
-# Executar launcher
-exec python3 "$INSTALL_DIR/src/main.py" "$@"
+# Titan Launcher Wrapper
+source "$INSTALL_DIR/venv/bin/activate"
+python3 "$INSTALL_DIR/src/main.py" "\$@"
+deactivate
 EOF
     
     chmod +x "$INSTALL_DIR/titan-launcher"
     
-    # Criar link simbolico em ~/.local/bin
+    # Criar link simbólico em ~/.local/bin
     mkdir -p "$BIN_DIR"
-    
-    if [ -L "$BIN_DIR/titan-launcher" ]; then
-        rm -f "$BIN_DIR/titan-launcher"
-    fi
-    
     ln -sf "$INSTALL_DIR/titan-launcher" "$BIN_DIR/titan-launcher"
-    log_info "Link criado em ~/.local/bin/titan-launcher"
     
-    # Instalar icone
-    mkdir -p "$ICON_DIR"
-    
-    if [ -f "$SCRIPT_DIR/TitanLauncher/assets/icons/titan_icon.png" ]; then
-        cp "$SCRIPT_DIR/TitanLauncher/assets/icons/titan_icon.png" "$ICON_DIR/titan-launcher.png"
-    elif [ -f "$INSTALL_DIR/assets/icons/titan_icon.png" ]; then
-        cp "$INSTALL_DIR/assets/icons/titan_icon.png" "$ICON_DIR/titan-launcher.png"
-    fi
-    
-    log_info "Instalacao concluida!"
+    log_info "Wrapper criado em $BIN_DIR/titan-launcher"
 }
 
 # ============================================================
-# ETAPA 5: CRIAR ENTRADA NO MENU DE APLICATIVOS
+# ETAPA 6: CRIAR ATALHO NO MENU (.desktop)
 # ============================================================
 create_desktop_entry() {
-    log_step "Criando entrada no menu de aplicativos..."
+    log_step "Criando atalho no menu..."
     
+    # Garantir diretorio de icones
+    mkdir -p "$ICON_DIR"
+    
+    # Copiar icone
+    if [ -f "$INSTALL_DIR/assets/icons/titan_icon.png" ]; then
+        cp "$INSTALL_DIR/assets/icons/titan_icon.png" "$ICON_DIR/titan-launcher.png"
+    fi
+    
+    # Criar arquivo .desktop
     mkdir -p "$DESKTOP_DIR"
-    
     cat > "$DESKTOP_DIR/titan-launcher.desktop" << EOF
 [Desktop Entry]
-Version=1.0
-Type=Application
 Name=Titan Launcher
-GenericName=Minecraft Launcher
 Comment=Minecraft Launcher para Linux - Titan Edition
-Exec=$INSTALL_DIR/titan-launcher
+Exec=$BIN_DIR/titan-launcher
 Icon=titan-launcher
 Terminal=false
-Categories=Game;ActionGame;AdventureGame;
-Keywords=minecraft;game;launcher;titan;
-StartupNotify=true
+Type=Application
+Categories=Game;
 StartupWMClass=TitanLauncher
-MimeType=application/x-titanprofile;
 EOF
     
     chmod +x "$DESKTOP_DIR/titan-launcher.desktop"
     
-    # Atualizar database de aplicativos
+    # Atualizar database
     if command_exists update-desktop-database; then
         update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
     fi
     
-    log_info "Entrada de menu criada!"
+    log_info "Atalho criado com sucesso!"
 }
 
 # ============================================================
-# ETAPA 6: VERIFICAR INSTALACAO
+# ETAPA 7: VERIFICACAO FINAL
 # ============================================================
 verify_installation() {
     log_step "Verificando instalacao..."
     
-    local all_ok=true
+    local errors=0
     
-    # Verificar executavel
-    if [ -f "$INSTALL_DIR/titan-launcher" ]; then
-        log_info "Executavel: OK"
-    else
-        log_error "Executavel nao encontrado!"
-        all_ok=false
-    fi
+    [ ! -f "$INSTALL_DIR/titan-launcher" ] && { log_error "Wrapper nao encontrado"; ((errors++)); }
+    [ ! -d "$INSTALL_DIR/venv" ] && { log_error "Venv nao encontrado"; ((errors++)); }
+    [ ! -f "$DESKTOP_DIR/titan-launcher.desktop" ] && { log_error "Atalho .desktop nao encontrado"; ((errors++)); }
     
-    # Verificar link simbolico
-    if [ -L "$BIN_DIR/titan-launcher" ]; then
-        log_info "Link em ~/.local/bin: OK"
-    else
-        log_warn "Link em ~/.local/bin nao criado"
-    fi
-    
-    # Verificar .desktop
-    if [ -f "$DESKTOP_DIR/titan-launcher.desktop" ]; then
-        log_info "Menu de aplicativos: OK"
-    else
-        log_warn "Menu de aplicativos nao criado"
-    fi
-    
-    # Verificar venv
-    if [ -d "$INSTALL_DIR/venv" ]; then
-        log_info "Ambiente virtual: OK"
-    else
-        log_error "Ambiente virtual nao encontrado!"
-        all_ok=false
-    fi
-    
-    # Verificar modulos Python
-    source "$INSTALL_DIR/venv/bin/activate"
-    
-    local modules_ok=true
-    
-    if python3 -c "import minecraft_launcher_lib" 2>/dev/null; then
-        log_info "Modulo minecraft-launcher-lib: OK"
-    else
-        log_error "Modulo minecraft-launcher-lib nao instalado!"
-        modules_ok=false
-    fi
-    
-    if python3 -c "from PIL import Image" 2>/dev/null; then
-        log_info "Modulo Pillow: OK"
-    else
-        log_error "Modulo Pillow nao instalado!"
-        modules_ok=false
-    fi
-    
-    if python3 -c "import psutil" 2>/dev/null; then
-        log_info "Modulo psutil: OK"
-    else
-        log_warn "Modulo psutil opcional nao instalado"
-    fi
-    
-    if python3 -c "import tkinter" 2>/dev/null; then
-        log_info "Modulo tkinter: OK"
-    else
-        log_error "Modulo tkinter nao disponivel!"
-        modules_ok=false
-    fi
-    
-    deactivate
-    
-    if [ "$modules_ok" = false ]; then
-        all_ok=false
-    fi
-    
-    if [ "$all_ok" = true ]; then
+    if [ $errors -eq 0 ]; then
         return 0
     else
         return 1
     fi
 }
 
-# ============================================================
-# ETAPA 7: CONFIGURAR PATH
-# ============================================================
 setup_path() {
     log_step "Configurando PATH..."
     
@@ -665,7 +570,7 @@ main() {
     esac
     
     echo ""
-    log_info "Iniciando instalacao do Titan Launcher v3.0..."
+    log_info "Iniciando instalacao do Titan Launcher..."
     echo ""
     
     # Etapas de instalacao
@@ -688,7 +593,7 @@ main() {
     if verify_installation; then
         echo ""
         echo -e "${GREEN}${BOLD}=============================================================${NC}"
-        echo -e "${GREEN}${BOLD}  Titan Launcher v3.0 instalado com sucesso!${NC}"
+        echo -e "${GREEN}${BOLD}  Titan Launcher instalado com sucesso!${NC}"
         echo -e "${GREEN}${BOLD}=============================================================${NC}"
         echo ""
         log_info "Comando: titan-launcher"
