@@ -302,6 +302,7 @@ install_app_files() {
     
     # Copiar codigo fonte
     if [ -d "$SCRIPT_DIR/TitanLauncher/src" ]; then
+        mkdir -p "$INSTALL_DIR"
         cp -r "$SCRIPT_DIR/TitanLauncher/src" "$INSTALL_DIR/"
         log_info "Codigo fonte copiado"
     else
@@ -311,6 +312,7 @@ install_app_files() {
     
     # Copiar assets
     if [ -d "$SCRIPT_DIR/TitanLauncher/assets" ]; then
+        mkdir -p "$INSTALL_DIR"
         cp -r "$SCRIPT_DIR/TitanLauncher/assets" "$INSTALL_DIR/"
         log_info "Assets copiados"
     fi
